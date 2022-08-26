@@ -1,2 +1,2 @@
-# Image_Segmentation
-Illustration of various algorithms, techniques and CNN architectures used to segment images
+# Graph Neural Networks
+Tracing the fundamentals of graph representaion learning using neural networks
