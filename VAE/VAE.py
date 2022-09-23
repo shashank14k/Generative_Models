@@ -20,7 +20,7 @@ def conv(Inp, num_filters, kernel_size, padding, max_pool, activation):
     return conv1
 
 
-def convup(Inp, num_filters, kernel_size, padding, max_pool, sample,
+def convup(Inp, num_filters, kernel_size, padding,
            activation):
     x = Conv2DTranspose(num_filters, kernel_size, padding=padding)(Inp)
     x = BatchNormalization()(x)
@@ -37,12 +37,19 @@ def sampling(inputs):
     return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
 
-class VaeInputs(BaseModel):
+class EncInputs(BaseModel):
     num_filters: int
     kernel_size: int = 3
     padding: str = 'same'
     activation: str = 'relu'
     max_pool: bool = True
+
+
+class DecInputs(BaseModel):
+    num_filters: int
+    kernel_size: int = 3
+    padding: str = 'same'
+    activation: str = 'relu'
 
 
 class VaeModel:
@@ -53,17 +60,19 @@ class VAE:
     def __init__(self, input_shape, encoder_arch: list, latent_dims: int,
                  decoder_arch='encoder'):
         self.encoder = None
+        self.decoder = None
         self.encoder_last_conv_shape = None
         self.input_shape = input_shape
         self.encoder_arch = encoder_arch
         self.latent_dims = latent_dims
+        self.decoder_arch = decoder_arch
         self.construct_encoder()
         self.construct_decoder()
 
     def construct_encoder(self):
         Inp = Input(self.input_shape)
         for i, params in enumerate(self.encoder_arch):
-            params = VaeInputs(**params).dict()
+            params = EncInputs(**params).dict()
             if i == 0:
                 layer = conv(Inp=Inp, **params)
             else:
@@ -83,21 +92,20 @@ class VAE:
         shp_ = self.encoder.get_layer('Flatten_encoder_layer').output_shape
         fl = Dense(shp_[1])(latent_inputs)
         re = Reshape(self.encoder_last_conv_shape[1:])(fl)
-#         if self.decoder_arch == 'encoder':
-#             self.encoder.arch.reverse()
-#             self.encoder_arch = self.encoder_arch
-#
-#         for i, params in enumerate(self.encoder_arch):
-#             params = VaeInputs(**params).dict()
-#             if i == 0:
-#                 layer = conv(Inp=Inp, **params)
-#             else:
-#                 layer = conv(Inp=layer, **params)
-#         layer = Flatten()(layer)
-#         layer = Dense(self.latent_dims, activation='relu')(layer)
-#         self.encoder = Model(Inp, layer, name='encoder')
-#
-#
+        if self.decoder_arch == 'encoder':
+            self.encoder_arch.reverse()
+            self.encoder_arch = self.encoder_arch
+        #
+        for i, params in enumerate(self.encoder_arch):
+            params.pop('max_pool', None)
+            params = DecInputs(**params).dict()
+            if i == 0:
+                layer = convup(Inp=re, **params)
+            else:
+                layer = convup(Inp=layer, **params)
+        out = conv(layer, self.input_shape[2], 1, 'same', False, 'relu')
+        self.decoder = Model(latent_inputs, out, name='decoder')
+
 # l = [
 #     {'num_filters': 24, 'kernel_size': 3},
 #     {'num_filters': 120, 'kernel_size': 5}
@@ -105,3 +113,4 @@ class VAE:
 #
 # obj = VAE((128, 128, 1), l, 20)
 # print(obj.encoder.summary())
+# print(obj.decoder.summary())
