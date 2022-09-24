@@ -4,7 +4,7 @@ setup(
     name='vae_generator',
     version='0.0.1',
     packages=[''],
-    url='https://github.com/shashank14k/Generative-Models/tree/main/VAE',
+    url='https://github.com/shashank14k/Generative-Models',
     license='',
     author='Shashank',
     author_email='shashank14k@gmail.com',
