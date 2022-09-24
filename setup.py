@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='vae_generator',
+    name='VaeGenerator',
     version='0.0.1',
     packages=[''],
     url='https://github.com/shashank14k/Generative-Models',
