@@ -64,7 +64,7 @@ class DecInputs(BaseModel):
 
 class Train(tf.keras.Model):
 
-    def __init__(self, encoder, decoder, train, val, train_len, val_len,epochs,lr=1e-3):
+    def __init__(self, encoder, decoder, train, val, epochs, lr=1e-3):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
@@ -76,14 +76,15 @@ class Train(tf.keras.Model):
         self.val_kl = tf.keras.metrics.Mean(name='val_kl_loss')
         self.val_re = tf.keras.metrics.Mean(name='val_re_loss')
         self.val_loss = tf.keras.metrics.Mean(name='val_loss')
-        self.train_runner(train,val,train_len,val_len,epochs)
+        self.train_runner(train, val, epochs, lr)
 
-    def call(self,data):
-        a,b,c = self.encoder(data)
-        d= self.decoder(c)
-        return a,b,c,d
+    def call(self, data):
+        a, b, c = self.encoder(data)
+        d = self.decoder(c)
+        return a, b, c, d
+
     @tf.function
-    def train_step(self,data):
+    def train_step(self, data):
         x, y = data
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z, reconstruction = self(x)
@@ -95,8 +96,9 @@ class Train(tf.keras.Model):
         self.total_loss_tracker.update_state(total_loss)
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
         self.kl_loss_tracker.update_state(kl_loss)
+
     @tf.function
-    def test_step(self,data):
+    def test_step(self, data):
         x, y = data
         z_mean, z_log_var, z, reconstruction = self(x, training=False)
         reconstruction_loss = rec_loss(x, reconstruction)
@@ -106,23 +108,23 @@ class Train(tf.keras.Model):
         self.val_re.update_state(reconstruction_loss)
         self.val_loss.update_state(total_loss)
 
-    def train_runner(self,train,val,train_len,val_len,epochs,lr):
+    def train_runner(self, train, val, epochs, lr):
         for t in train:
             break
+        batch_size = t[0].shape[0]
         self.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr))
-        batch_size = t[0].shape
         for epochs in range(epochs):
             batches = 0
             for data in train:
                 self.train_step(data)
                 batches += 1
-                if batches >= train_len//batch_size:
+                if batches >= train.samples // batch_size:
                     batches = 0
                     break
             for data in val:
                 self.test_step(data)
                 batches += 1
-                if batches > val_len//batch_size:
+                if batches > val.samples // batch_size:
                     break
             template = (
                 "epoch: {}, train_loss: {},val_loss: {}, val_rec: {}, val_kl: {}")
@@ -181,8 +183,6 @@ class VAE:
                 layer = convup(Inp=layer, **params)
         out = conv(layer, self.input_shape[2], 1, 'same', False, 'relu')
         self.decoder = Model(latent_inputs, out, name='decoder')
-
-
 
 # l = [
 #     {'num_filters': 24, 'kernel_size': 3},
